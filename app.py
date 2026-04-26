@@ -1,12 +1,76 @@
-from flask import Flask
+from flask import Flask, flash, redirect, render_template, request, url_for
+
+from models import Candidate, Employer, db
 
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///talent_matching.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = 'dev-secret-key'
+
+db.init_app(app)
+
+
+with app.app_context():
+	db.create_all()
 
 
 @app.route('/')
 def hello_world():
 	return 'Hello, World!'
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+	if request.method == 'POST':
+		email = request.form.get('email', '').strip().lower()
+		password = request.form.get('password', '').strip()
+
+		if not email or not password:
+			flash('Please enter both email and password.', 'danger')
+			return redirect(url_for('login'))
+
+		candidate = Candidate.query.filter_by(email=email).first()
+		employer = Employer.query.filter_by(contact_email=email).first()
+
+		if candidate or employer:
+			flash('Login successful.', 'success')
+			return redirect(url_for('hello_world'))
+
+		flash('No account found for that email address.', 'danger')
+		return redirect(url_for('login'))
+
+	return render_template('login.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+	if request.method == 'POST':
+		name = request.form.get('name', '').strip()
+		email = request.form.get('email', '').strip().lower()
+		password = request.form.get('password', '').strip()
+		role = request.form.get('role', '').strip().lower()
+
+		if not name or not email or not password or role not in {'candidate', 'employer'}:
+			flash('Please complete all fields before creating an account.', 'danger')
+			return redirect(url_for('register'))
+
+		if Candidate.query.filter_by(email=email).first() or Employer.query.filter_by(contact_email=email).first():
+			flash('An account already exists for that email address.', 'warning')
+			return redirect(url_for('register'))
+
+		if role == 'candidate':
+			account = Candidate(full_name=name, email=email)
+		else:
+			account = Employer(company_name=name, contact_email=email)
+
+		db.session.add(account)
+		db.session.commit()
+
+		flash('Account created successfully.', 'success')
+		return redirect(url_for('login'))
+
+	return render_template('register.html')
 
 
 if __name__ == '__main__':
