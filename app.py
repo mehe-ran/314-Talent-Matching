@@ -73,5 +73,10 @@ def register():
 	return render_template('register.html')
 
 
+@app.route('/candidate')
+def candidate_dashboard():
+	return render_template('candidate_dashboard.html')
+
+
 if __name__ == '__main__':
 	app.run(debug=True)
