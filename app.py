@@ -1,6 +1,7 @@
 from flask import Flask, flash, redirect, render_template, request, url_for
+from sqlalchemy import or_
 
-from models import Candidate, Employer, db
+from models import Candidate, Employer, JobPosting, db
 
 
 app = Flask(__name__)
@@ -81,6 +82,29 @@ def candidate_dashboard():
 @app.route('/employer')
 def employer_dashboard():
 	return render_template('employer_dashboard.html')
+
+
+@app.route('/search')
+def search():
+	keywords = request.args.get('keywords', '').strip()
+	location = request.args.get('location', '').strip()
+
+	query = JobPosting.query
+
+	# if keywords are provided, search in title and description
+	if keywords:
+		keyword_filter = or_(
+			JobPosting.job_title.ilike(f'%{keywords}%'),
+			JobPosting.job_description.ilike(f'%{keywords}%')
+		)
+		query = query.filter(keyword_filter)
+
+	# if location is provided, filter by location
+	if location:
+		query = query.filter(JobPosting.location.ilike(f'%{location}%'))
+
+	jobs = query.all()
+	return render_template('search_results.html', jobs=jobs, search_keywords=keywords, search_location=location)
 
 
 if __name__ == '__main__':
