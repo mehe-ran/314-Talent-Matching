@@ -2,7 +2,8 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from models import Candidate, Employer, JobPosting, db
-
+from utils.matcher import find_close_matches
+ 
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///talent_matching.db'
@@ -93,9 +94,14 @@ def search():
 
 	# if keywords are provided, search in title and description
 	if keywords:
+		# get all unique job titles to use for fuzzy matching
+		all_job_titles = [job[0] for job in db.session.query(JobPosting.job_title).distinct().all()]
+		close_title_matches = find_close_matches(keywords, all_job_titles)
+
 		keyword_filter = or_(
 			JobPosting.job_title.ilike(f'%{keywords}%'),
-			JobPosting.job_description.ilike(f'%{keywords}%')
+			JobPosting.job_description.ilike(f'%{keywords}%'),
+			JobPosting.job_title.in_(close_title_matches)
 		)
 		query = query.filter(keyword_filter)
 
