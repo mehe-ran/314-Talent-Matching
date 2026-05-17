@@ -113,5 +113,26 @@ def search():
 	return render_template('search_results.html', jobs=jobs, search_keywords=keywords, search_location=location)
 
 
+@app.route('/recommend')
+def recommend():
+	# for demonstration, we'll use the first candidate.
+	# in a real application, you would get the logged-in candidate's id from the session.
+	candidate = Candidate.query.first()
+
+	if not candidate:
+		flash('No candidates found in the database to provide recommendations for.', 'warning')
+		return redirect(url_for('hello_world'))
+
+	# base query for job postings
+	recommended_jobs_query = JobPosting.query
+
+	# premium members see all recommendations, free members are limited.
+	if not candidate.is_member:
+		recommended_jobs_query = recommended_jobs_query.limit(10)
+
+	jobs = recommended_jobs_query.all()
+	return render_template('recommendations.html', jobs=jobs, candidate=candidate)
+
+
 if __name__ == '__main__':
 	app.run(debug=True)
