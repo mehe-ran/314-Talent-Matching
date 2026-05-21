@@ -13,6 +13,7 @@ class Candidate(db.Model):
     major = db.Column('Major', db.String(120), nullable=True)
     years_of_experience = db.Column('YearsOfExperience', db.Integer, nullable=True)
     preferred_work_mode = db.Column('PreferredWorkMode', db.String(50), nullable=True)
+    location = db.Column('Location', db.String(120), nullable=True)
     is_member = db.Column('IsMember', db.Boolean, default=False, nullable=False)
 
     skills = db.relationship('Skill', secondary='candidate_skill', back_populates='candidates')
