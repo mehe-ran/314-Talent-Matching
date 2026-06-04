@@ -1,16 +1,35 @@
-from flask import Flask, flash, redirect, render_template, request, url_for
+import os
+from functools import wraps
+from flask import Flask, flash, redirect, render_template, request, url_for, session, send_from_directory
 from sqlalchemy import or_
+from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
-from models import Candidate, Employer, JobPosting, db
-from utils.matcher import find_close_matches
- 
+from models import Candidate, Employer, JobPosting, Skill, db
+from utils.matcher import find_close_matches, calculate_job_recommendations, calculate_candidate_recommendations
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///talent_matching.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'dev-secret-key'
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
+app.config['UPLOAD_FOLDER'] = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf', 'docx'}
 
 db.init_app(app)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('You must be logged in to view this page.', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 with app.app_context():
@@ -21,39 +40,68 @@ with app.app_context():
 def hello_world():
 	return 'Hello, World!'
 
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    if session.get('user_type') == 'candidate':
+        return redirect(url_for('candidate_dashboard'))
+    elif session.get('user_type') == 'employer':
+        return redirect(url_for('employer_dashboard'))
+    else:
+        flash('Invalid user type in session.', 'danger')
+        return redirect(url_for('login'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('login'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-	if request.method == 'POST':
-		email = request.form.get('email', '').strip().lower()
-		password = request.form.get('password', '').strip()
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
 
-		if not email or not password:
-			flash('Please enter both email and password.', 'danger')
-			return redirect(url_for('login'))
+        if not email or not password:
+            flash('Please enter both email and password.', 'danger')
+            return redirect(url_for('login'))
 
-		candidate = Candidate.query.filter_by(email=email).first()
-		employer = Employer.query.filter_by(contact_email=email).first()
+        user = Candidate.query.filter_by(email=email).first()
+        user_type = 'candidate'
+        if not user:
+            user = Employer.query.filter_by(contact_email=email).first()
+            user_type = 'employer'
 
-		if candidate or employer:
-			flash('Login successful.', 'success')
-			return redirect(url_for('hello_world'))
+        if user and check_password_hash(user.password_hash, password):
+            session.clear()
+            if user_type == 'candidate':
+                session['user_id'] = user.candidate_id
+            else:
+                session['user_id'] = user.employer_id
+            session['user_type'] = user_type
+            flash('Login successful.', 'success')
+            return redirect(url_for('dashboard'))
+        elif user:
+            flash('Incorrect password, please try again.', 'danger')
+        else:
+            flash('No account found for that email address.', 'danger')
 
-		flash('No account found for that email address.', 'danger')
-		return redirect(url_for('login'))
+        return redirect(url_for('login'))
 
-	return render_template('login.html')
+    return render_template('login.html')
 
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 	if request.method == 'POST':
-		name = request.form.get('name', '').strip()
+		full_name = request.form.get('full_name', '').strip()
 		email = request.form.get('email', '').strip().lower()
 		password = request.form.get('password', '').strip()
-		role = request.form.get('role', '').strip().lower()
+		user_type = request.form.get('user_type', '').strip().lower()
 
-		if not name or not email or not password or role not in {'candidate', 'employer'}:
+		if not full_name or not email or not password or user_type not in {'candidate', 'employer'}:
 			flash('Please complete all fields before creating an account.', 'danger')
 			return redirect(url_for('register'))
 
@@ -61,34 +109,45 @@ def register():
 			flash('An account already exists for that email address.', 'warning')
 			return redirect(url_for('register'))
 
-		if role == 'candidate':
-			account = Candidate(full_name=name, email=email)
+		hashed_password = generate_password_hash(password)
+
+		if user_type == 'candidate':
+			account = Candidate(full_name=full_name, email=email, password_hash=hashed_password)
 		else:
-			account = Employer(company_name=name, contact_email=email)
+			# For employer, the form sends 'full_name', but the model expects 'company_name'
+			account = Employer(company_name=full_name, contact_email=email, password_hash=hashed_password)
 
 		db.session.add(account)
 		db.session.commit()
 
-		flash('Account created successfully.', 'success')
+		flash('Account created successfully. You can now log in.', 'success')
 		return redirect(url_for('login'))
 
 	return render_template('register.html')
 
 
-@app.route('/candidate')
+@app.route('/candidate_dashboard')
+@login_required
 def candidate_dashboard():
-	return render_template('candidate_dashboard.html')
+    candidate = db.session.get(Candidate, session['user_id'])
+    return render_template('candidate_dashboard.html', title='Candidate Dashboard', candidate=candidate)
 
 
-@app.route('/employer')
+@app.route('/employer_dashboard')
+@login_required
 def employer_dashboard():
-	return render_template('employer_dashboard.html')
+    employer = db.session.get(Employer, session['user_id'])
+    return render_template('employer_dashboard.html', title='Employer Dashboard', employer=employer)
 
 
 @app.route('/search')
 def search():
 	keywords = request.args.get('keywords', '').strip()
 	location = request.args.get('location', '').strip()
+	work_mode = request.args.get('work_mode', '').strip()
+	job_type = request.args.get('job_type', '').strip()
+	experience = request.args.get('experience', type=int)
+	salary = request.args.get('salary', type=int)
 
 	query = JobPosting.query
 
@@ -109,29 +168,160 @@ def search():
 	if location:
 		query = query.filter(JobPosting.location.ilike(f'%{location}%'))
 
+	# if work_mode is provided, filter by it
+	if work_mode:
+		query = query.filter(JobPosting.work_mode == work_mode)
+	
+	# Add new filters
+	if job_type:
+		query = query.filter(JobPosting.job_type == job_type)
+	
+	if experience is not None:
+		query = query.filter(JobPosting.required_years_of_experience <= experience)
+
+	if salary is not None:
+		query = query.filter(JobPosting.salary_min <= salary, JobPosting.salary_max >= salary)
+
 	jobs = query.all()
-	return render_template('search_results.html', jobs=jobs, search_keywords=keywords, search_location=location)
+	return render_template('search_results.html', jobs=jobs, search_keywords=keywords, search_location=location, search_work_mode=work_mode)
 
 
 @app.route('/recommend')
+@login_required
 def recommend():
-	# for demonstration, we'll use the first candidate.
-	# in a real application, you would get the logged-in candidate's id from the session.
-	candidate = Candidate.query.first()
+    if session['user_type'] != 'candidate':
+        flash('Recommendations are only available for candidates.', 'warning')
+        return redirect(url_for('dashboard'))
 
-	if not candidate:
-		flash('No candidates found in the database to provide recommendations for.', 'warning')
-		return redirect(url_for('hello_world'))
+    candidate = db.session.get(Candidate, session['user_id'])
+    if not candidate:
+        flash('Could not find your candidate profile.', 'danger')
+        session.clear()
+        return redirect(url_for('login'))
 
-	# base query for job postings
-	recommended_jobs_query = JobPosting.query
+    all_jobs = JobPosting.query.all()
+    
+    recommended_jobs = calculate_job_recommendations(candidate, all_jobs)
 
-	# premium members see all recommendations, free members are limited.
-	if not candidate.is_member:
-		recommended_jobs_query = recommended_jobs_query.limit(10)
+    # Limit recommendations for non-members
+    if not candidate.is_member:
+        recommended_jobs = recommended_jobs[:10]
 
-	jobs = recommended_jobs_query.all()
-	return render_template('recommendations.html', jobs=jobs, candidate=candidate)
+    return render_template('recommendations.html', jobs=recommended_jobs, candidate=candidate)
+
+@app.route('/search/candidates')
+@login_required
+def search_candidates():
+    if session.get('user_type') != 'employer':
+        flash('Only employers can search for candidates.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    skills_str = request.args.get('skills', '').strip()
+    location = request.args.get('location', '').strip()
+
+    query = Candidate.query
+
+    if skills_str:
+        skill_names = [s.strip() for s in skills_str.split(',')]
+        query = query.join(Candidate.skills).filter(Skill.skill_name.in_(skill_names))
+    
+    if location:
+        query = query.filter(Candidate.location.ilike(f'%{location}%'))
+
+    candidates = query.all()
+
+    return render_template('candidate_search_results.html', candidates=candidates)
+
+@app.route('/profile/edit', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    if session['user_type'] != 'candidate':
+        flash('This page is only available for candidates.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    candidate = db.session.get(Candidate, session['user_id'])
+
+    if request.method == 'POST':
+        candidate.full_name = request.form.get('full_name', candidate.full_name)
+        candidate.location = request.form.get('location', candidate.location)
+        candidate.preferred_work_mode = request.form.get('preferred_work_mode', candidate.preferred_work_mode)
+        
+        # Handle file upload
+        if 'resume' in request.files:
+            file = request.files['resume']
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                # To avoid filename conflicts, prepend user_id
+                unique_filename = f"{candidate.candidate_id}_{filename}"
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+                candidate.resume_filename = unique_filename
+
+        db.session.commit()
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('edit_profile.html', candidate=candidate)
+
+@app.route('/jobs/new', methods=['GET', 'POST'])
+@login_required
+def create_job():
+    if session.get('user_type') != 'employer':
+        flash('Only employers can post new jobs.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        new_job = JobPosting(
+            job_title=request.form['job_title'],
+            job_description=request.form['job_description'],
+            location=request.form['location'],
+            work_mode=request.form['work_mode'],
+            employer_id=session['user_id'],
+            required_education_level=request.form.get('required_education_level'),
+            required_years_of_experience=request.form.get('required_years_of_experience', type=int),
+            salary_min=request.form.get('salary_min', type=int),
+            salary_max=request.form.get('salary_max', type=int),
+            job_type=request.form.get('job_type')
+        )
+        db.session.add(new_job)
+        db.session.commit()
+        flash('Job posted successfully!', 'success')
+        return redirect(url_for('employer_dashboard'))
+
+    return render_template('create_job.html')
+
+@app.route('/jobs/<int:job_id>/recommendations')
+@login_required
+def job_recommendations(job_id):
+    if session.get('user_type') != 'employer':
+        flash('Only employers can view candidate recommendations.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    job = db.session.get(JobPosting, job_id)
+    if not job or job.employer_id != session['user_id']:
+        flash('Job not found or you do not have permission to view it.', 'danger')
+        return redirect(url_for('employer_dashboard'))
+
+    all_candidates = Candidate.query.all()
+    employer = db.session.get(Employer, session['user_id'])
+
+    recommended_candidates = calculate_candidate_recommendations(job, all_candidates)
+
+    if not employer.is_member:
+        recommended_candidates = recommended_candidates[:10]
+
+    return render_template('employer_recommendations.html', candidates=recommended_candidates, job=job)
+
+@app.route('/uploads/<filename>')
+@login_required
+def download_resume(filename):
+    # A basic security check - only the user who owns the resume can download it.
+    # In a real app, you might also allow employers with certain permissions.
+    candidate = db.session.get(Candidate, session['user_id'])
+    if candidate and candidate.resume_filename == filename:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    
+    flash('You do not have permission to access this file.', 'danger')
+    return redirect(url_for('dashboard'))
 
 
 if __name__ == '__main__':

@@ -9,17 +9,37 @@ class Candidate(db.Model):
     candidate_id = db.Column('CandidateID', db.Integer, primary_key=True)
     full_name = db.Column('FullName', db.String(120), nullable=False)
     email = db.Column('Email', db.String(120), unique=True, nullable=False)
+    password_hash = db.Column('PasswordHash', db.String(256), nullable=False)
     education_level = db.Column('EducationLevel', db.String(120), nullable=True)
     major = db.Column('Major', db.String(120), nullable=True)
     years_of_experience = db.Column('YearsOfExperience', db.Integer, nullable=True)
     preferred_work_mode = db.Column('PreferredWorkMode', db.String(50), nullable=True)
     location = db.Column('Location', db.String(120), nullable=True)
     is_member = db.Column('IsMember', db.Boolean, default=False, nullable=False)
+    resume_filename = db.Column('ResumeFilename', db.String(256), nullable=True)
 
     skills = db.relationship('Skill', secondary='candidate_skill', back_populates='candidates')
+    work_experiences = db.relationship('WorkExperience', back_populates='candidate', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Candidate {self.full_name}>"
+
+
+class WorkExperience(db.Model):
+    __tablename__ = 'work_experience'
+
+    experience_id = db.Column('ExperienceID', db.Integer, primary_key=True)
+    candidate_id = db.Column('CandidateID', db.Integer, db.ForeignKey('candidate.CandidateID'), nullable=False)
+    job_title = db.Column('JobTitle', db.String(120), nullable=False)
+    company_name = db.Column('CompanyName', db.String(120), nullable=False)
+    start_date = db.Column('StartDate', db.Date, nullable=True)
+    end_date = db.Column('EndDate', db.Date, nullable=True)
+    description = db.Column('Description', db.Text, nullable=True)
+
+    candidate = db.relationship('Candidate', back_populates='work_experiences')
+
+    def __repr__(self):
+        return f"<WorkExperience {self.job_title} at {self.company_name}>"
 
 
 class Employer(db.Model):
@@ -28,7 +48,9 @@ class Employer(db.Model):
     employer_id = db.Column('EmployerID', db.Integer, primary_key=True)
     company_name = db.Column('CompanyName', db.String(120), nullable=False)
     contact_email = db.Column('ContactEmail', db.String(120), unique=True, nullable=False)
+    password_hash = db.Column('PasswordHash', db.String(256), nullable=False)
     industry = db.Column('Industry', db.String(120), nullable=True)
+    is_member = db.Column('IsMember', db.Boolean, default=False, nullable=False)
 
     job_postings = db.relationship('JobPosting', back_populates='employer', cascade='all, delete-orphan')
 
@@ -47,6 +69,11 @@ class JobPosting(db.Model):
     required_experience = db.Column('RequiredExperience', db.Integer, nullable=True)
     work_mode = db.Column('WorkMode', db.String(50), nullable=True)
     location = db.Column('Location', db.String(120), nullable=True)
+    required_education_level = db.Column('RequiredEducationLevel', db.String(120), nullable=True)
+    required_years_of_experience = db.Column('RequiredYearsOfExperience', db.Integer, nullable=True)
+    job_type = db.Column('JobType', db.String(50), nullable=True)
+    salary_min = db.Column('SalaryMin', db.Integer, nullable=True)
+    salary_max = db.Column('SalaryMax', db.Integer, nullable=True)
 
     employer = db.relationship('Employer', back_populates='job_postings')
     skills = db.relationship('Skill', secondary='job_skill', back_populates='job_postings')

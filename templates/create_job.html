@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Post a New Job{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-10 col-lg-8">
+        <div class="card p-4 p-md-5">
+            <h1 class="h3 mb-4">Create a New Job Posting</h1>
+            <form method="post">
+                <div class="row g-3">
+                    <div class="col-md-6 mb-3">
+                        <label for="job_title" class="form-label">Job Title</label>
+                        <input type="text" class="form-control" id="job_title" name="job_title" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="location" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="location" name="location">
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label for="job_description" class="form-label">Job Description</label>
+                        <textarea class="form-control" id="job_description" name="job_description" rows="5" required></textarea>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="job_type" class="form-label">Job Type</label>
+                        <select class="form-select" name="job_type" id="job_type">
+                            <option value="Full-time" selected>Full-time</option>
+                            <option value="Part-time">Part-time</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Internship">Internship</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="work_mode" class="form-label">Work Mode</label>
+                        <select class="form-select" name="work_mode" id="work_mode">
+                            <option value="On-site" selected>On-site</option>
+                            <option value="Remote">Remote</option>
+                            <option value="Hybrid">Hybrid</option>
+                        </select>
+                    </div>
+                     <div class="col-md-6 mb-3">
+                        <label for="required_education_level" class="form-label">Required Education</label>
+                        <input type="text" class="form-control" id="required_education_level" name="required_education_level">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="required_years_of_experience" class="form-label">Required Years of Experience</label>
+                        <input type="number" class="form-control" id="required_years_of_experience" name="required_years_of_experience" min="0">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="salary_min" class="form-label">Minimum Salary</label>
+                        <input type="number" class="form-control" id="salary_min" name="salary_min" min="0">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="salary_max" class="form-label">Maximum Salary</label>
+                        <input type="number" class="form-control" id="salary_max" name="salary_max" min="0">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Post Job</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

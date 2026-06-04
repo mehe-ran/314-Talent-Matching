@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Candidate Recommendations for {{ job.job_title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="h2 mb-4">Candidate Recommendations for "{{ job.job_title }}"</h1>
+
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Top Candidate Matches</h5>
+        </div>
+        <div class="card-body">
+            {% if candidates %}
+                <div class="list-group list-group-flush">
+                    {% for candidate in candidates %}
+                        <div class="list-group-item">
+                            <h6 class="mb-1">{{ candidate.full_name }}</h6>
+                            <p class="mb-1 text-muted">{{ candidate.location }} | {{ candidate.email }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-center text-muted">No suitable candidates found at this time.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

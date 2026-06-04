@@ -64,12 +64,41 @@
         <div class="card mb-4">
             <div class="card-body">
                 <form action="{{ url_for('search') }}" method="get">
-                    <div class="row g-3">
-                        <div class="col-md-5">
-                            <input type="text" class="form-control" name="keywords" placeholder="Job title, keywords, or company" value="{{ search_keywords or '' }}">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="keywords" class="form-label">Keywords</label>
+                            <input type="text" class="form-control" id="keywords" name="keywords" placeholder="Job title, keywords..." value="{{ search_keywords or '' }}">
                         </div>
-                        <div class="col-md-5">
-                            <input type="text" class="form-control" name="location" placeholder="City, state, or remote" value="{{ search_location or '' }}">
+                        <div class="col-md-4">
+                            <label for="location" class="form-label">Location</label>
+                            <input type="text" class="form-control" id="location" name="location" placeholder="City, state, or remote" value="{{ search_location or '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="work_mode" class="form-label">Work Mode</label>
+                            <select class="form-select" name="work_mode" id="work_mode">
+                                <option value="">Any</option>
+                                <option value="On-site" {% if search_work_mode == 'On-site' %}selected{% endif %}>On-site</option>
+                                <option value="Remote" {% if search_work_mode == 'Remote' %}selected{% endif %}>Remote</option>
+                                <option value="Hybrid" {% if search_work_mode == 'Hybrid' %}selected{% endif %}>Hybrid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="job_type" class="form-label">Job Type</label>
+                            <select class="form-select" name="job_type" id="job_type">
+                                <option value="">Any</option>
+                                <option value="Full-time">Full-time</option>
+                                <option value="Part-time">Part-time</option>
+                                <option value="Contract">Contract</option>
+                                <option value="Internship">Internship</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="experience" class="form-label">Max Experience (Yrs)</label>
+                            <input type="number" class="form-control" name="experience" id="experience" min="0">
+                        </div>
+                        <div class="col-md-3">
+                             <label for="salary" class="form-label">Min Salary</label>
+                            <input type="number" class="form-control" name="salary" id="salary" min="0">
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100">Find Jobs</button>

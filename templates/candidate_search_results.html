@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Candidate Search Results{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="h2 mb-4">Candidate Search Results</h1>
+
+    <!-- Search results would be displayed here -->
+    {% if candidates %}
+        <div class="list-group">
+            {% for candidate in candidates %}
+                <div class="list-group-item">
+                    <h5 class="mb-1">{{ candidate.full_name }}</h5>
+                    <p class="mb-1">{{ candidate.location }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No candidates found matching your criteria.</p>
+    {% endif %}
+</div>
+{% endblock %}
