@@ -7,8 +7,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from models import Candidate, Employer, JobPosting, Skill, db
-from utils.matcher import find_close_matches, calculate_job_recommendations, calculate_candidate_recommendations, get_synonyms
-
+from utils.matcher import find_close_matches, calculate_job_recommendations, calculate_candidate_recommendations, \
+    get_synonyms
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///talent_matching.db'
@@ -19,8 +19,10 @@ ALLOWED_EXTENSIONS = {'pdf', 'docx'}
 
 db.init_app(app)
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def login_required(f):
     @wraps(f)
@@ -29,16 +31,18 @@ def login_required(f):
             flash('You must be logged in to view this page.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
+
     return decorated_function
 
 
 with app.app_context():
-	db.create_all()
+    db.create_all()
 
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/dashboard')
 @login_required
@@ -50,6 +54,7 @@ def dashboard():
     else:
         flash('Invalid user type in session.', 'danger')
         return redirect(url_for('login'))
+
 
 @app.route('/logout')
 def logout():
@@ -101,35 +106,35 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-	if request.method == 'POST':
-		full_name = request.form.get('full_name', '').strip()
-		email = request.form.get('email', '').strip().lower()
-		password = request.form.get('password', '').strip()
-		user_type = request.form.get('user_type', '').strip().lower()
+    if request.method == 'POST':
+        full_name = request.form.get('full_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '').strip()
+        user_type = request.form.get('user_type', '').strip().lower()
 
-		if not full_name or not email or not password or user_type not in {'candidate', 'employer'}:
-			flash('Please complete all fields before creating an account.', 'danger')
-			return redirect(url_for('register'))
+        if not full_name or not email or not password or user_type not in {'candidate', 'employer'}:
+            flash('Please complete all fields before creating an account.', 'danger')
+            return redirect(url_for('register'))
 
-		if Candidate.query.filter_by(email=email).first() or Employer.query.filter_by(contact_email=email).first():
-			flash('An account already exists for that email address.', 'warning')
-			return redirect(url_for('register'))
+        if Candidate.query.filter_by(email=email).first() or Employer.query.filter_by(contact_email=email).first():
+            flash('An account already exists for that email address.', 'warning')
+            return redirect(url_for('register'))
 
-		hashed_password = generate_password_hash(password)
+        hashed_password = generate_password_hash(password)
 
-		if user_type == 'candidate':
-			account = Candidate(full_name=full_name, email=email, password_hash=hashed_password)
-		else:
-			# For employer, the form sends 'full_name', but the model expects 'company_name'
-			account = Employer(company_name=full_name, contact_email=email, password_hash=hashed_password)
+        if user_type == 'candidate':
+            account = Candidate(full_name=full_name, email=email, password_hash=hashed_password)
+        else:
+            # For employer, the form sends 'full_name', but the model expects 'company_name'
+            account = Employer(company_name=full_name, contact_email=email, password_hash=hashed_password)
 
-		db.session.add(account)
-		db.session.commit()
+        db.session.add(account)
+        db.session.commit()
 
-		flash('Account created successfully. You can now log in.', 'success')
-		return redirect(url_for('login'))
+        flash('Account created successfully. You can now log in.', 'success')
+        return redirect(url_for('login'))
 
-	return render_template('register.html')
+    return render_template('register.html')
 
 
 @app.route('/candidate_dashboard')
@@ -148,51 +153,52 @@ def employer_dashboard():
 
 @app.route('/search')
 def search():
-	keywords = request.args.get('keywords', '').strip()
-	location = request.args.get('location', '').strip()
-	work_mode = request.args.get('work_mode', '').strip()
-	job_type = request.args.get('job_type', '').strip()
-	experience = request.args.get('experience', type=int)
-	salary = request.args.get('salary', type=int)
+    keywords = request.args.get('keywords', '').strip()
+    location = request.args.get('location', '').strip()
+    work_mode = request.args.get('work_mode', '').strip()
+    job_type = request.args.get('job_type', '').strip()
+    experience = request.args.get('experience', type=int)
+    salary = request.args.get('salary', type=int)
 
-	query = JobPosting.query
+    query = JobPosting.query
 
-	# if keywords are provided, search in title and description
-	if keywords:
-		search_terms = get_synonyms(keywords)
-		
-		# get all unique job titles to use for fuzzy matching
-		all_job_titles = [job[0] for job in db.session.query(JobPosting.job_title).distinct().all()]
-		close_title_matches = find_close_matches(keywords, all_job_titles)
-		search_terms.update(close_title_matches)
+    # if keywords are provided, search in title and description
+    if keywords:
+        search_terms = get_synonyms(keywords)
 
-		keyword_filters = []
-		for term in search_terms:
-			keyword_filters.append(JobPosting.job_title.ilike(f'%{term}%'))
-			keyword_filters.append(JobPosting.job_description.ilike(f'%{term}%'))
+        # get all unique job titles to use for fuzzy matching
+        all_job_titles = [job[0] for job in db.session.query(JobPosting.job_title).distinct().all()]
+        close_title_matches = find_close_matches(keywords, all_job_titles)
+        search_terms.update(close_title_matches)
 
-		query = query.filter(or_(*keyword_filters))
+        keyword_filters = []
+        for term in search_terms:
+            keyword_filters.append(JobPosting.job_title.ilike(f'%{term}%'))
+            keyword_filters.append(JobPosting.job_description.ilike(f'%{term}%'))
 
-	# if location is provided, filter by location
-	if location:
-		query = query.filter(JobPosting.location.ilike(f'%{location}%'))
+        query = query.filter(or_(*keyword_filters))
 
-	# if work_mode is provided, filter by it
-	if work_mode:
-		query = query.filter(JobPosting.work_mode == work_mode)
-	
-	# Add new filters
-	if job_type:
-		query = query.filter(JobPosting.job_type == job_type)
-	
-	if experience is not None:
-		query = query.filter(JobPosting.required_years_of_experience <= experience)
+    # if location is provided, filter by location
+    if location:
+        query = query.filter(JobPosting.location.ilike(f'%{location}%'))
 
-	if salary is not None:
-		query = query.filter(JobPosting.salary_min <= salary, JobPosting.salary_max >= salary)
+    # if work_mode is provided, filter by it
+    if work_mode:
+        query = query.filter(JobPosting.work_mode == work_mode)
 
-	jobs = query.all()
-	return render_template('search_results.html', jobs=jobs, search_keywords=keywords, search_location=location, search_work_mode=work_mode)
+    # Add new filters
+    if job_type:
+        query = query.filter(JobPosting.job_type == job_type)
+
+    if experience is not None:
+        query = query.filter(JobPosting.required_years_of_experience <= experience)
+
+    if salary is not None:
+        query = query.filter(JobPosting.salary_min <= salary, JobPosting.salary_max >= salary)
+
+    jobs = query.all()
+    return render_template('search_results.html', jobs=jobs, search_keywords=keywords, search_location=location,
+                           search_work_mode=work_mode)
 
 
 @app.route('/recommend')
@@ -209,7 +215,7 @@ def recommend():
         return redirect(url_for('login'))
 
     all_jobs = JobPosting.query.all()
-    
+
     recommended_jobs = calculate_job_recommendations(candidate, all_jobs)
 
     # Limit recommendations for non-members
@@ -217,6 +223,7 @@ def recommend():
         recommended_jobs = recommended_jobs[:10]
 
     return render_template('recommendations.html', jobs=recommended_jobs, candidate=candidate)
+
 
 @app.route('/search/candidates')
 @login_required
@@ -233,7 +240,7 @@ def search_candidates():
     if skills_str:
         skill_names = [s.strip() for s in skills_str.split(',')]
         query = query.join(Candidate.skills).filter(Skill.skill_name.in_(skill_names))
-    
+
     if location:
         query = query.filter(Candidate.location.ilike(f'%{location}%'))
 
@@ -241,13 +248,14 @@ def search_candidates():
 
     return render_template('candidate_search_results.html', candidates=candidates)
 
+
 @app.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
     if session['user_type'] != 'candidate':
         flash('This page is only available for candidates.', 'warning')
         return redirect(url_for('dashboard'))
-    
+
     candidate = db.session.get(Candidate, session['user_id'])
     if candidate is None:
         flash('Candidate profile not found.', 'danger')
@@ -258,7 +266,7 @@ def edit_profile():
         candidate.full_name = request.form.get('full_name', candidate.full_name)
         candidate.location = request.form.get('location', candidate.location)
         candidate.preferred_work_mode = request.form.get('preferred_work_mode', candidate.preferred_work_mode)
-        
+
         years_of_experience_str = request.form.get('years_of_experience')
         if years_of_experience_str:
             try:
@@ -267,27 +275,32 @@ def edit_profile():
                 flash('Years of Experience must be a valid number.', 'danger')
                 return redirect(url_for('edit_profile'))
         else:
-            candidate.years_of_experience = None # Clear if empty
+            candidate.years_of_experience = None  # Clear if empty
 
-        # Handle skills update. The frontend sends a JSON string of objects.
-        skills_str = request.form.get('skills', '')
+        # Universal Skills Parsing Logic
+        skills_raw = request.form.getlist('skills')
+        skill_names = []
+        if skills_raw:
+            if len(skills_raw) == 1 and skills_raw[0].strip().startswith('['):
+                try:
+                    skills_data = json.loads(skills_raw[0])
+                    if isinstance(skills_data, list):
+                        skill_names = [item['value'].strip() for item in skills_data if
+                                       isinstance(item, dict) and item.get('value')]
+                except json.JSONDecodeError:
+                    skill_names = [s.strip() for s in skills_raw[0].split(',') if s.strip()]
+            elif len(skills_raw) == 1 and ',' in skills_raw[0]:
+                skill_names = [s.strip() for s in skills_raw[0].split(',') if s.strip()]
+            else:
+                skill_names = [s.strip() for s in skills_raw if s.strip()]
+
         candidate.skills.clear()
-        
-        if skills_str:
-            try:
-                # Parse the JSON string from Tagify
-                skills_data = json.loads(skills_str)
-                # Extract the 'value' from each dict in the list
-                skill_names = [item['value'].strip().lower() for item in skills_data if item.get('value')]
-                
-                for skill_name in skill_names:
-                    skill = Skill.query.filter(func.lower(Skill.skill_name) == skill_name).first()
-                    if not skill:
-                        skill = Skill(skill_name=skill_name)
-                        db.session.add(skill)
-                    candidate.skills.append(skill)
-            except json.JSONDecodeError:
-                flash('An error occurred while processing skills.', 'danger')
+        for skill_name in skill_names:
+            skill = Skill.query.filter(func.lower(Skill.skill_name) == skill_name.lower()).first()
+            if not skill:
+                skill = Skill(skill_name=skill_name)
+                db.session.add(skill)
+            candidate.skills.append(skill)
 
         if 'resume' in request.files:
             file = request.files['resume']
@@ -300,7 +313,6 @@ def edit_profile():
                     candidate.resume_filename = unique_filename
                     flash('Resume uploaded successfully!', 'success')
                 except Exception as e:
-                    # Log the actual error for debugging
                     app.logger.error(f"Error uploading resume for candidate {candidate.candidate_id}: {e}")
                     flash('An error occurred during resume upload. Please try again.', 'danger')
             elif file and not file.filename:
@@ -308,13 +320,13 @@ def edit_profile():
             elif file and not allowed_file(file.filename):
                 flash('Invalid file type for resume. Accepted formats: PDF, DOCX.', 'warning')
 
-
         db.session.commit()
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('dashboard'))
-    
+
     all_skills = Skill.query.all()
     return render_template('edit_profile.html', candidate=candidate, all_skills=all_skills)
+
 
 @app.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
@@ -323,7 +335,7 @@ def create_job():
         flash('Only employers can post new jobs.', 'warning')
         return redirect(url_for('dashboard'))
 
-    all_skills = Skill.query.all() # Query all skills here for both GET and POST (if POST fails validation)
+    all_skills = Skill.query.all()
 
     if request.method == 'POST':
         new_job = JobPosting(
@@ -338,32 +350,38 @@ def create_job():
             salary_max=request.form.get('salary_max', type=int),
             job_type=request.form.get('job_type')
         )
-        
-        # Handle skills for the job posting. The frontend sends a JSON string of objects.
-        skills_str = request.form.get('skills', '')
-        if skills_str:
-            try:
-                # Parse the JSON string from Tagify
-                skills_data = json.loads(skills_str)
-                # Extract the 'value' from each dict in the list
-                skill_names = [item['value'].strip().lower() for item in skills_data if item.get('value')]
 
-                for skill_name in skill_names:
-                    skill = Skill.query.filter(func.lower(Skill.skill_name) == skill_name).first()
-                    if not skill:
-                        skill = Skill(skill_name=skill_name)
-                        db.session.add(skill)
-                    new_job.skills.append(skill)
-            except json.JSONDecodeError:
-                flash('An error occurred while processing skills for the job.', 'danger')
+        # Universal Skills Parsing Logic
+        skills_raw = request.form.getlist('skills')
+        skill_names = []
+        if skills_raw:
+            if len(skills_raw) == 1 and skills_raw[0].strip().startswith('['):
+                try:
+                    skills_data = json.loads(skills_raw[0])
+                    if isinstance(skills_data, list):
+                        skill_names = [item['value'].strip() for item in skills_data if
+                                       isinstance(item, dict) and item.get('value')]
+                except json.JSONDecodeError:
+                    skill_names = [s.strip() for s in skills_raw[0].split(',') if s.strip()]
+            elif len(skills_raw) == 1 and ',' in skills_raw[0]:
+                skill_names = [s.strip() for s in skills_raw[0].split(',') if s.strip()]
+            else:
+                skill_names = [s.strip() for s in skills_raw if s.strip()]
 
-        
+        for skill_name in skill_names:
+            skill = Skill.query.filter(func.lower(Skill.skill_name) == skill_name.lower()).first()
+            if not skill:
+                skill = Skill(skill_name=skill_name)
+                db.session.add(skill)
+            new_job.skills.append(skill)
+
         db.session.add(new_job)
         db.session.commit()
         flash('Job posted successfully!', 'success')
         return redirect(url_for('employer_dashboard'))
 
     return render_template('create_job.html', all_skills=all_skills)
+
 
 @app.route('/jobs/<int:job_id>/recommendations')
 @login_required
@@ -385,20 +403,20 @@ def job_recommendations(job_id):
     if not employer.is_member:
         recommended_candidates = recommended_candidates[:10]
 
-    return render_template('employer_recommendations.html', candidates=recommended_candidates, job=job, employer=employer)
+    return render_template('employer_recommendations.html', candidates=recommended_candidates, job=job,
+                           employer=employer)
+
 
 @app.route('/uploads/<filename>')
 @login_required
 def download_resume(filename):
-    # A basic security check - only the user who owns the resume can download it.
-    # In a real app, you might also allow employers with certain permissions.
     candidate = db.session.get(Candidate, session['user_id'])
     if candidate and candidate.resume_filename == filename:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-    
+
     flash('You do not have permission to access this file.', 'danger')
     return redirect(url_for('dashboard'))
 
 
 if __name__ == '__main__':
-	app.run(debug=True)
+    app.run(debug=True)
