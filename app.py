@@ -1,26 +1,26 @@
 import os
+import json
 from functools import wraps
 from flask import Flask, flash, redirect, render_template, request, url_for, session, send_from_directory
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from models import Candidate, Employer, JobPosting, Skill, db
-from utils.matcher import find_close_matches, calculate_job_recommendations, calculate_candidate_recommendations
+from utils.matcher import find_close_matches, calculate_job_recommendations, calculate_candidate_recommendations, get_synonyms
 
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///talent_matching.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 ALLOWED_EXTENSIONS = {'pdf', 'docx'}
 
 db.init_app(app)
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def login_required(f):
     @wraps(f)
@@ -37,8 +37,8 @@ with app.app_context():
 
 
 @app.route('/')
-def hello_world():
-	return 'Hello, World!'
+def index():
+    return render_template('index.html')
 
 @app.route('/dashboard')
 @login_required
@@ -56,6 +56,12 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
+
+@app.route('/upgrade')
+@login_required
+def upgrade():
+    return render_template('upgrade.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -153,16 +159,19 @@ def search():
 
 	# if keywords are provided, search in title and description
 	if keywords:
+		search_terms = get_synonyms(keywords)
+		
 		# get all unique job titles to use for fuzzy matching
 		all_job_titles = [job[0] for job in db.session.query(JobPosting.job_title).distinct().all()]
 		close_title_matches = find_close_matches(keywords, all_job_titles)
+		search_terms.update(close_title_matches)
 
-		keyword_filter = or_(
-			JobPosting.job_title.ilike(f'%{keywords}%'),
-			JobPosting.job_description.ilike(f'%{keywords}%'),
-			JobPosting.job_title.in_(close_title_matches)
-		)
-		query = query.filter(keyword_filter)
+		keyword_filters = []
+		for term in search_terms:
+			keyword_filters.append(JobPosting.job_title.ilike(f'%{term}%'))
+			keyword_filters.append(JobPosting.job_description.ilike(f'%{term}%'))
+
+		query = query.filter(or_(*keyword_filters))
 
 	# if location is provided, filter by location
 	if location:
@@ -240,27 +249,72 @@ def edit_profile():
         return redirect(url_for('dashboard'))
     
     candidate = db.session.get(Candidate, session['user_id'])
+    if candidate is None:
+        flash('Candidate profile not found.', 'danger')
+        session.clear()
+        return redirect(url_for('login'))
 
     if request.method == 'POST':
         candidate.full_name = request.form.get('full_name', candidate.full_name)
         candidate.location = request.form.get('location', candidate.location)
         candidate.preferred_work_mode = request.form.get('preferred_work_mode', candidate.preferred_work_mode)
         
-        # Handle file upload
+        years_of_experience_str = request.form.get('years_of_experience')
+        if years_of_experience_str:
+            try:
+                candidate.years_of_experience = int(years_of_experience_str)
+            except ValueError:
+                flash('Years of Experience must be a valid number.', 'danger')
+                return redirect(url_for('edit_profile'))
+        else:
+            candidate.years_of_experience = None # Clear if empty
+
+        # Handle skills update. The frontend sends a JSON string of objects.
+        skills_str = request.form.get('skills', '')
+        candidate.skills.clear()
+        
+        if skills_str:
+            try:
+                # Parse the JSON string from Tagify
+                skills_data = json.loads(skills_str)
+                # Extract the 'value' from each dict in the list
+                skill_names = [item['value'].strip().lower() for item in skills_data if item.get('value')]
+                
+                for skill_name in skill_names:
+                    skill = Skill.query.filter(func.lower(Skill.skill_name) == skill_name).first()
+                    if not skill:
+                        skill = Skill(skill_name=skill_name)
+                        db.session.add(skill)
+                    candidate.skills.append(skill)
+            except json.JSONDecodeError:
+                flash('An error occurred while processing skills.', 'danger')
+
         if 'resume' in request.files:
             file = request.files['resume']
             if file and file.filename and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                # To avoid filename conflicts, prepend user_id
                 unique_filename = f"{candidate.candidate_id}_{filename}"
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-                candidate.resume_filename = unique_filename
+                try:
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                    file.save(file_path)
+                    candidate.resume_filename = unique_filename
+                    flash('Resume uploaded successfully!', 'success')
+                except Exception as e:
+                    # Log the actual error for debugging
+                    app.logger.error(f"Error uploading resume for candidate {candidate.candidate_id}: {e}")
+                    flash('An error occurred during resume upload. Please try again.', 'danger')
+            elif file and not file.filename:
+                flash('No selected file for resume upload.', 'warning')
+            elif file and not allowed_file(file.filename):
+                flash('Invalid file type for resume. Accepted formats: PDF, DOCX.', 'warning')
+
 
         db.session.commit()
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('dashboard'))
     
-    return render_template('edit_profile.html', candidate=candidate)
+    all_skills = Skill.query.all()
+    return render_template('edit_profile.html', candidate=candidate, all_skills=all_skills)
 
 @app.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
@@ -268,6 +322,8 @@ def create_job():
     if session.get('user_type') != 'employer':
         flash('Only employers can post new jobs.', 'warning')
         return redirect(url_for('dashboard'))
+
+    all_skills = Skill.query.all() # Query all skills here for both GET and POST (if POST fails validation)
 
     if request.method == 'POST':
         new_job = JobPosting(
@@ -282,12 +338,32 @@ def create_job():
             salary_max=request.form.get('salary_max', type=int),
             job_type=request.form.get('job_type')
         )
+        
+        # Handle skills for the job posting. The frontend sends a JSON string of objects.
+        skills_str = request.form.get('skills', '')
+        if skills_str:
+            try:
+                # Parse the JSON string from Tagify
+                skills_data = json.loads(skills_str)
+                # Extract the 'value' from each dict in the list
+                skill_names = [item['value'].strip().lower() for item in skills_data if item.get('value')]
+
+                for skill_name in skill_names:
+                    skill = Skill.query.filter(func.lower(Skill.skill_name) == skill_name).first()
+                    if not skill:
+                        skill = Skill(skill_name=skill_name)
+                        db.session.add(skill)
+                    new_job.skills.append(skill)
+            except json.JSONDecodeError:
+                flash('An error occurred while processing skills for the job.', 'danger')
+
+        
         db.session.add(new_job)
         db.session.commit()
         flash('Job posted successfully!', 'success')
         return redirect(url_for('employer_dashboard'))
 
-    return render_template('create_job.html')
+    return render_template('create_job.html', all_skills=all_skills)
 
 @app.route('/jobs/<int:job_id>/recommendations')
 @login_required
@@ -309,7 +385,7 @@ def job_recommendations(job_id):
     if not employer.is_member:
         recommended_candidates = recommended_candidates[:10]
 
-    return render_template('employer_recommendations.html', candidates=recommended_candidates, job=job)
+    return render_template('employer_recommendations.html', candidates=recommended_candidates, job=job, employer=employer)
 
 @app.route('/uploads/<filename>')
 @login_required

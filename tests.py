@@ -16,7 +16,7 @@ class TalentMatchingTestCase(unittest.TestCase):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['WTF_CSRF_ENABLED'] = False
         app.config['SECRET_KEY'] = 'test-secret'
-        app.config['UPLOAD_FOLDER'] = 'test_uploads'
+        app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'test_uploads') # Use absolute path for consistency
         self.client = app.test_client()
 
         # create upload folder
@@ -29,6 +29,31 @@ class TalentMatchingTestCase(unittest.TestCase):
             hashed_password = generate_password_hash('testpassword')
             test_candidate = Candidate(full_name='Test User', email='test@example.com', password_hash=hashed_password)
             db.session.add(test_candidate)
+
+            # Add all skills used in tests
+            skill_python = Skill(skill_name='Python')
+            skill_flask = Skill(skill_name='Flask')
+            skill_sql = Skill(skill_name='SQL')
+            skill_react = Skill(skill_name='React')
+            skill_go = Skill(skill_name='Go')
+            skill_javascript = Skill(skill_name='JavaScript')
+            skill_java = Skill(skill_name='Java')
+            skill_csharp = Skill(skill_name='C#')
+            skill_cpp = Skill(skill_name='C++')
+            skill_ruby = Skill(skill_name='Ruby')
+            skill_php = Skill(skill_name='PHP')
+            skill_swift = Skill(skill_name='Swift')
+            skill_kotlin = Skill(skill_name='Kotlin')
+            skill_typescript = Skill(skill_name='TypeScript')
+            skill_r = Skill(skill_name='R')
+            skill_scala = Skill(skill_name='Scala')
+            skill_rust = Skill(skill_name='Rust')
+            db.session.add_all([
+                skill_python, skill_flask, skill_sql, skill_react, skill_go, skill_javascript,
+                skill_java, skill_csharp, skill_cpp, skill_ruby, skill_php, skill_swift,
+                skill_kotlin, skill_typescript, skill_r, skill_scala, skill_rust
+            ])
+
             db.session.commit()
 
     def tearDown(self):
@@ -70,7 +95,7 @@ class TalentMatchingTestCase(unittest.TestCase):
             }, follow_redirects=True)
             self.assertEqual(response.status_code, 200)
             # Check for a welcome message on the dashboard
-            self.assertIn(b'Welcome to your dashboard', response.data)
+            self.assertIn(b'Login successful.', response.data)
             with self.client.session_transaction() as sess:
                 self.assertEqual(sess.get('user_type'), 'candidate')
                 self.assertIsNotNone(sess.get('user_id'))
@@ -135,11 +160,9 @@ class TalentMatchingTestCase(unittest.TestCase):
     def test_recommendation_returns_skilled_matches(self):
         with app.app_context():
             # 1. Setup: Create skills, a candidate with skills, and jobs with skills
-            skill1 = Skill(skill_name='Python')
-            skill2 = Skill(skill_name='Flask')
-            skill3 = Skill(skill_name='SQL')
-            db.session.add_all([skill1, skill2, skill3])
-            db.session.commit()
+            skill1 = Skill.query.filter_by(skill_name='Python').first()
+            skill2 = Skill.query.filter_by(skill_name='Flask').first()
+            skill3 = Skill.query.filter_by(skill_name='SQL').first()
 
             candidate = Candidate.query.filter_by(email='test@example.com').first()
             candidate.skills.extend([skill1, skill2]) # Candidate knows Python and Flask
@@ -180,6 +203,10 @@ class TalentMatchingTestCase(unittest.TestCase):
         self.assertIn(job4_title, response_data)
         self.assertNotIn(job3_title, response_data)
         
+        # Check scores
+        self.assertIn('Match Score: 100%', response_data)
+        self.assertIn('Match Score: 50%', response_data)
+        
         # Check order - job1 must appear before both job2 and job4
         job1_pos = response_data.find(job1_title)
         job2_pos = response_data.find(job2_title)
@@ -190,9 +217,7 @@ class TalentMatchingTestCase(unittest.TestCase):
     def test_recommendation_limit_for_non_members(self):
         with app.app_context():
             # Setup: 1 candidate, 1 skill, 12 jobs requiring that skill
-            skill = Skill(skill_name='Go')
-            db.session.add(skill)
-            db.session.commit()
+            skill = Skill.query.filter_by(skill_name='Go').first()
 
             candidate = Candidate.query.filter_by(email='test@example.com').first()
             candidate.skills.append(skill)
@@ -218,7 +243,7 @@ class TalentMatchingTestCase(unittest.TestCase):
         # Assert: Check that only 10 jobs are present
         self.assertIn('Go Developer #10', response_data)
         self.assertNotIn('Go Developer #11', response_data)
-        self.assertEqual(response_data.count('h6 class="mb-1"'), 10)
+        self.assertEqual(response_data.count('<h5 class="fw-bold mb-0 me-3">'), 10)
 
     def test_search_filter_by_work_mode(self):
         with app.app_context():
@@ -241,10 +266,8 @@ class TalentMatchingTestCase(unittest.TestCase):
     def test_search_for_candidates(self):
         with app.app_context():
             # Setup skills
-            skill_py = Skill(skill_name='Python')
-            skill_js = Skill(skill_name='JavaScript')
-            db.session.add_all([skill_py, skill_js])
-            db.session.commit()
+            skill_py = Skill.query.filter_by(skill_name='Python').first()
+            skill_js = Skill.query.filter_by(skill_name='JavaScript').first()
 
             # Setup candidates
             c1 = Candidate(full_name='Python Dev Remote', email='c1@test.com', password_hash='...', location='Remote', skills=[skill_py])
@@ -291,6 +314,7 @@ class TalentMatchingTestCase(unittest.TestCase):
                 'full_name': 'Updated Name',
                 'location': 'New Location',
                 'preferred_work_mode': 'Hybrid',
+                'years_of_experience': 5, # Added years_of_experience
                 'resume': (io.BytesIO(b"this is a test resume"), 'test.pdf')
             }
             response = self.client.post('/profile/edit', data=data, 
@@ -304,6 +328,7 @@ class TalentMatchingTestCase(unittest.TestCase):
             self.assertEqual(updated_candidate.full_name, 'Updated Name')
             self.assertEqual(updated_candidate.location, 'New Location')
             self.assertEqual(updated_candidate.preferred_work_mode, 'Hybrid')
+            self.assertEqual(updated_candidate.years_of_experience, 5) # Assert years_of_experience
             self.assertIsNotNone(updated_candidate.resume_filename)
             self.assertTrue('test.pdf' in updated_candidate.resume_filename)
 
@@ -383,9 +408,8 @@ class TalentMatchingTestCase(unittest.TestCase):
     def test_employer_recommendations(self):
         with app.app_context():
             # Skills
-            skill_py = Skill(skill_name='Python')
-            skill_flask = Skill(skill_name='Flask')
-            db.session.add_all([skill_py, skill_flask])
+            skill_py = Skill.query.filter_by(skill_name='Python').first()
+            skill_flask = Skill.query.filter_by(skill_name='Flask').first()
 
             # Employer (non-member)
             employer = Employer(company_name='RecommenderCorp', contact_email='rec@corp.com', password_hash=generate_password_hash('password'), is_member=False)
@@ -423,11 +447,52 @@ class TalentMatchingTestCase(unittest.TestCase):
         self.assertIn('Partial Match', response_data)
         self.assertNotIn('No Match', response_data)
         
+        # Check scores
+        self.assertIn('100% Match', response_data)
+        self.assertIn('50% Match', response_data)
+
         # Check order
         self.assertTrue(response_data.find('Perfect Match') < response_data.find('Partial Match'))
 
         # Check non-member limit (1 perfect + 9 partial = 10 total)
-        self.assertEqual(response_data.count('<h6 class="mb-1">'), 10)
+        self.assertEqual(response_data.count('<h5 class="fw-bold mb-0 me-3">'), 10)
 
-if __name__ == '__main__':
-    unittest.main()
+
+    def test_candidate_can_update_skills(self):
+        with app.app_context():
+            # Add some skills to the test candidate initially
+            candidate = db.session.get(Candidate, 1)
+            python_skill = Skill.query.filter_by(skill_name='Python').first()
+            sql_skill = Skill.query.filter_by(skill_name='SQL').first()
+            candidate.skills.append(python_skill)
+            candidate.skills.append(sql_skill)
+            db.session.commit()
+
+            # Get skill IDs for form submission
+            flask_skill = Skill.query.filter_by(skill_name='Flask').first()
+            react_skill = Skill.query.filter_by(skill_name='React').first()
+            
+            # Action: Login and update profile with new skills
+        with self.client:
+            self.client.post('/login', data={'email': 'test@example.com', 'password': 'testpassword'})
+            
+            data = {
+                'full_name': 'Test User', # Keep existing name
+                'email': 'test@example.com', # Keep existing email
+                'skills': [str(flask_skill.skill_id), str(react_skill.skill_id)] # Update skills
+            }
+            response = self.client.post('/profile/edit', data=data, follow_redirects=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'Profile updated successfully!', response.data)
+
+        with app.app_context():
+            updated_candidate = db.session.get(Candidate, 1)
+            updated_skill_names = {skill.skill_name for skill in updated_candidate.skills}
+            
+            self.assertIn('Flask', updated_skill_names)
+            self.assertIn('React', updated_skill_names)
+            self.assertNotIn('Python', updated_skill_names)
+            self.assertNotIn('SQL', updated_skill_names)
+            self.assertEqual(len(updated_skill_names), 2)
+

@@ -1,28 +1,44 @@
 {% extends "base.html" %}
 
-{% block title %}Post a New Job{% endblock %}
+{% block title %}Post a New Job | TalentMatch{% endblock %}
 
 {% block content %}
+<link href="https://unpkg.com/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+
 <div class="row justify-content-center">
     <div class="col-12 col-md-10 col-lg-8">
         <div class="card p-4 p-md-5">
-            <h1 class="h3 mb-4">Create a New Job Posting</h1>
+            <div class="mb-5">
+                <div class="section-kicker mb-2">Recruitment</div>
+                <h1 class="fw-bold mb-2">Create a New Job Posting</h1>
+                <p class="text-muted">Provide detailed information to attract the best candidates for your team.</p>
+            </div>
+
             <form method="post">
-                <div class="row g-3">
-                    <div class="col-md-6 mb-3">
-                        <label for="job_title" class="form-label">Job Title</label>
-                        <input type="text" class="form-control" id="job_title" name="job_title" required>
+                <div class="row g-4">
+                    <div class="col-md-8">
+                        <label for="job_title" class="form-label fw-semibold">Job Title</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-heading text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="job_title" name="job_title" placeholder="e.g. Senior Software Engineer" required>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="location" class="form-label">Location</label>
-                        <input type="text" class="form-control" id="location" name="location">
+                    
+                    <div class="col-md-4">
+                        <label for="location" class="form-label fw-semibold">Location</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-map-marker-alt text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="location" name="location" placeholder="e.g. Singapore">
+                        </div>
                     </div>
-                    <div class="col-12 mb-3">
-                        <label for="job_description" class="form-label">Job Description</label>
-                        <textarea class="form-control" id="job_description" name="job_description" rows="5" required></textarea>
+
+                    <div class="col-12">
+                        <label for="job_description" class="form-label fw-semibold">Job Description</label>
+                        <textarea class="form-control" id="job_description" name="job_description" rows="6" placeholder="Describe the role, responsibilities, and requirements..." required></textarea>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="job_type" class="form-label">Job Type</label>
+
+                    <div class="col-md-6">
+                        <label for="job_type" class="form-label fw-semibold">Employment Type</label>
                         <select class="form-select" name="job_type" id="job_type">
                             <option value="Full-time" selected>Full-time</option>
                             <option value="Part-time">Part-time</option>
@@ -30,34 +46,73 @@
                             <option value="Internship">Internship</option>
                         </select>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="work_mode" class="form-label">Work Mode</label>
+
+                    <div class="col-md-6">
+                        <label for="work_mode" class="form-label fw-semibold">Work Mode</label>
                         <select class="form-select" name="work_mode" id="work_mode">
                             <option value="On-site" selected>On-site</option>
                             <option value="Remote">Remote</option>
                             <option value="Hybrid">Hybrid</option>
                         </select>
                     </div>
-                     <div class="col-md-6 mb-3">
-                        <label for="required_education_level" class="form-label">Required Education</label>
-                        <input type="text" class="form-control" id="required_education_level" name="required_education_level">
+
+                    <div class="col-md-6">
+                        <label for="required_education_level" class="form-label fw-semibold">Required Education</label>
+                        <input type="text" class="form-control" id="required_education_level" name="required_education_level" placeholder="e.g. Bachelor's in CS">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="required_years_of_experience" class="form-label">Required Years of Experience</label>
-                        <input type="number" class="form-control" id="required_years_of_experience" name="required_years_of_experience" min="0">
+
+                    <div class="col-md-6">
+                        <label for="required_years_of_experience" class="form-label fw-semibold">Years of Experience</label>
+                        <input type="number" class="form-control" id="required_years_of_experience" name="required_years_of_experience" min="0" placeholder="e.g. 3">
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="salary_min" class="form-label">Minimum Salary</label>
-                        <input type="number" class="form-control" id="salary_min" name="salary_min" min="0">
+
+                    <div class="col-md-6">
+                        <label for="salary_min" class="form-label fw-semibold">Min Salary (Monthly)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="salary_min" name="salary_min" min="0" placeholder="e.g. 5000">
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="salary_max" class="form-label">Maximum Salary</label>
-                        <input type="number" class="form-control" id="salary_max" name="salary_max" min="0">
+
+                    <div class="col-md-6">
+                        <label for="salary_max" class="form-label fw-semibold">Max Salary (Monthly)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="salary_max" name="salary_max" min="0" placeholder="e.g. 8000">
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="skills" class="form-label fw-semibold">Required Skills</label>
+                        <input name='skills' class='form-control' placeholder='add required skills'>
+                        <div class="form-text mt-1 small">Add required skills for this job. Press enter to add a new skill.</div>
+                    </div>
+
+                    <div class="col-12 mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            Post Job Opening <i class="fas fa-paper-plane ms-2"></i>
+                        </button>
+                        <a href="/dashboard" class="btn btn-link text-muted ms-3">Cancel and return</a>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary mt-3">Post Job</button>
             </form>
         </div>
     </div>
 </div>
+
+<script src="https://unpkg.com/@yaireo/tagify"></script>
+<script src="https://unpkg.com/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
+<script>
+    var input = document.querySelector('input[name=skills]');
+    var all_skills_whitelist = {{ all_skills|map(attribute='skill_name')|list|tojson }};
+    new Tagify(input, {
+        whitelist: all_skills_whitelist,
+        dropdown: {
+            maxItems: 20,
+            classname: "tags-look",
+            enabled: 0,
+            closeOnSelect: false
+        }
+    });
+</script>
 {% endblock %}

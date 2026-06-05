@@ -94,6 +94,14 @@ class Skill(db.Model):
     def __repr__(self):
         return f"<Skill {self.skill_name}>"
 
+    def __eq__(self, other):
+        if isinstance(other, Skill):
+            return self.skill_id == other.skill_id
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.skill_id)
+
 
 class CandidateSkill(db.Model):
     __tablename__ = 'candidate_skill'

@@ -1,29 +1,95 @@
 {% extends "base.html" %}
 
-{% block title %}Candidate Recommendations for {{ job.job_title }}{% endblock %}
+{% block title %}Candidate Recommendations | TalentMatch{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h1 class="h2 mb-4">Candidate Recommendations for "{{ job.job_title }}"</h1>
-
-    <div class="card">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">Top Candidate Matches</h5>
-        </div>
-        <div class="card-body">
-            {% if candidates %}
-                <div class="list-group list-group-flush">
-                    {% for candidate in candidates %}
-                        <div class="list-group-item">
-                            <h6 class="mb-1">{{ candidate.full_name }}</h6>
-                            <p class="mb-1 text-muted">{{ candidate.location }} | {{ candidate.email }}</p>
-                        </div>
-                    {% endfor %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card bg-primary text-white p-4 border-0">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="section-kicker text-white opacity-75 mb-2">Matching Results</div>
+                    <h1 class="fw-bold mb-1">Top Candidates for "{{ job.job_title }}"</h1>
+                    <p class="opacity-75 mb-0">We've identified the best talent matching your specific job requirements.</p>
                 </div>
-            {% else %}
-                <p class="text-center text-muted">No suitable candidates found at this time.</p>
-            {% endif %}
+                <div class="d-none d-md-block">
+                    <i class="fas fa-magic fa-3x opacity-25"></i>
+                </div>
+            </div>
         </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-12">
+        {% if not employer.is_member %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card p-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-white p-3 rounded-circle shadow-sm">
+                            <i class="fas fa-crown text-warning fa-lg"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="fw-bold mb-1 text-warning-emphasis">Upgrade to Premium</h5>
+                            <p class="mb-0 text-warning-emphasis small">You're currently seeing the top 10 candidates. Get full access to all candidates and direct messaging.</p>
+                        </div>
+                        <a href="{{ url_for('upgrade') }}" class="btn btn-warning fw-bold px-4">Upgrade</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if candidates %}
+            <div class="row g-3">
+                {% for candidate in candidates %}
+                    <div class="col-12">
+                        <div class="card p-4 border-start border-success border-4 shadow-sm">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                                    <div class="bg-primary-light rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 72px; height: 72px;">
+                                        <i class="fas fa-user-tie fa-2x text-primary"></i>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <h5 class="fw-bold mb-0 me-3">{{ candidate.candidate.full_name }}</h5>
+                                        <span class="badge bg-success-subtle text-success rounded-pill px-3">{{ candidate.score|int }}% Match</span>
+                                    </div>
+                                    <p class="text-muted small mb-2">
+                                        <i class="fas fa-map-marker-alt me-1"></i> {{ candidate.candidate.location or 'Location not specified' }}
+                                        &bull; <i class="fas fa-envelope ms-2 me-1"></i> {{ candidate.candidate.email }}
+                                    </p>
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        {% for skill in candidate.candidate.skills[:6] %}
+                                            <span class="badge bg-light text-secondary border small">{{ skill.skill_name }}</span>
+                                        {% endfor %}
+                                        {% if candidate.candidate.skills|length > 6 %}
+                                            <span class="badge bg-light text-secondary border small">+{{ candidate.candidate.skills|length - 6 }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-md-end mt-3 mt-md-0">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-primary">View Full Profile</button>
+                                        <button class="btn btn-outline-secondary btn-sm">Message</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card p-5 text-center">
+                <div class="mb-4 opacity-25">
+                    <i class="fas fa-user-slash fa-5x"></i>
+                </div>
+                <h5 class="fw-bold">No candidates found yet</h5>
+                <p class="text-muted">We're still searching for candidates. Try broadening your job requirements or check back later.</p>
+                <a href="{{ url_for('employer_dashboard') }}" class="btn btn-outline-primary px-4 mt-2">Return to Dashboard</a>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

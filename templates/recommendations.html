@@ -1,42 +1,86 @@
 {% extends "base.html" %}
 
-{% block title %}Job Recommendations{% endblock %}
+{% block title %}Job Recommendations | TalentMatch{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h1 class="h2 mb-4">Your Recommended Jobs</h1>
-
-    {% if candidate %}
-    <div class="alert alert-info">
-        {% if candidate.is_member %}
-            <span class="fw-bold text-success">Premium Member:</span> You are seeing all relevant job recommendations.
-        {% else %}
-            <span class="fw-bold">Standard Member:</span> You are seeing the top 10 job recommendations. <a href="#">Upgrade to premium</a> to see all results.
-        {% endif %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card bg-primary text-white p-4 border-0">
+            <h1 class="fw-bold mb-1"><i class="fas fa-sparkles me-2 text-warning"></i> Your Top Matches</h1>
+            <p class="opacity-75 mb-0">We've analyzed your profile and found these top opportunities for you.</p>
+        </div>
     </div>
-    {% endif %}
+</div>
 
-    <div class="card">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">Top Matches for You</h5>
-        </div>
-        <div class="card-body">
-            {% if jobs %}
-                <div class="list-group list-group-flush">
-                    {% for job in jobs %}
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ job.job_title }}</h6>
-                                <small>{{ job.location }}</small>
-                            </div>
-                            <p class="mb-1 text-muted">{{ job.employer.company_name }}</p>
-                        </a>
-                    {% endfor %}
+{% if not candidate.is_member %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card p-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-white p-3 rounded-circle shadow-sm">
+                    <i class="fas fa-crown text-warning fa-lg"></i>
                 </div>
-            {% else %}
-                <p class="text-center text-muted">No job recommendations found at this time. Please complete your profile.</p>
-            {% endif %}
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-1 text-warning-emphasis">Upgrade to Premium</h5>
+                    <p class="mb-0 text-warning-emphasis small">You're currently seeing the top 10 matches. Get full access to all job opportunities and direct messaging.</p>
+                </div>
+                <a href="{{ url_for('upgrade') }}" class="btn btn-warning fw-bold px-4">Upgrade</a>
+            </div>
         </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-lg-12">
+        {% if jobs %}
+            <div class="row g-3">
+                {% for job in jobs %}
+                    <div class="col-12">
+                        <div class="card p-4 border-start border-primary border-4">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <h5 class="fw-bold mb-0 me-3">{{ job.job.job_title }}</h5>
+                                        <span class="badge badge-primary rounded-pill px-3">{{ job.job.job_type or 'Full-time' }}</span>
+                                        <span class="ms-auto d-md-none text-primary fw-bold">{{ job.score|int }}% Match</span>
+                                    </div>
+                                    <p class="text-primary fw-semibold mb-2">{{ job.job.employer.company_name }}</p>
+                                    <div class="d-flex flex-wrap gap-3 text-muted small mb-3">
+                                        <span><i class="fas fa-map-marker-alt me-1"></i> {{ job.job.location }}</span>
+                                        <span><i class="fas fa-briefcase me-1"></i> {{ job.job.work_mode }}</span>
+                                        <span><i class="fas fa-clock me-1"></i> Posted 2 days ago</span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        {% for skill in job.job.skills[:5] %}
+                                            <span class="badge bg-light text-secondary border small">{{ skill.skill_name }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                    <div class="d-none d-md-block mb-3">
+                                        <span class="text-primary fw-bold">Match Score: {{ job.score|int }}%</span>
+                                        <div class="progress mt-1 ms-auto" style="height: 4px; width: 100px;">
+                                            <div class="progress-bar" style="width: {{ job.score|int }}%;"></div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-primary px-4">Apply Now</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card p-5 text-center">
+                <div class="mb-4 opacity-25">
+                    <i class="fas fa-search fa-5x"></i>
+                </div>
+                <h5 class="fw-bold">No recommendations yet</h5>
+                <p class="text-muted">We couldn't find any job recommendations for you at the moment. Try updating your profile with more skills and experience.</p>
+                <a href="{{ url_for('edit_profile') }}" class="btn btn-primary px-4 mt-2">Update Profile</a>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

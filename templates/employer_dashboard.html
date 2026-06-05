@@ -1,69 +1,92 @@
 {% extends "base.html" %}
 
-{% block title %}Employer Dashboard{% endblock %}
+{% block title %}Employer Dashboard | TalentMatch{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="h2">Welcome to your dashboard, {{ employer.company_name }}</h1>
-            <p class="lead">Here you can post new jobs, manage your listings, and search for candidates.</p>
-        </div>
-    </div>
-
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Actions</span>
-                    <a href="{{ url_for('create_job') }}" class="btn btn-primary btn-sm">Post a New Job</a>
-                </div>
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card p-4 p-md-5 bg-primary text-white interactive-card text-center text-md-start d-md-flex flex-md-row align-items-md-center justify-content-md-between">
+            <div>
+                <h2 class="fw-bold mb-2 text-white">Welcome back, {{ employer.company_name }}!</h2>
+                <p class="mb-0 opacity-75">Manage your recruitment pipeline and find the best talent.</p>
+            </div>
+            <div class="mt-4 mt-md-0">
+                <a href="{{ url_for('create_job') }}" class="btn btn-light text-primary fw-bold px-4 py-2">
+                    Post New Job
+                </a>
             </div>
         </div>
     </div>
-    
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    Search for Candidates
-                </div>
-                <div class="card-body">
-                    <form action="{{ url_for('search_candidates') }}" method="get">
-                        <div class="row g-3">
-                            <div class="col-md-5">
-                                <input type="text" class="form-control" name="skills" placeholder="Skills (e.g., Python, Flask)">
+</div>
+
+<div class="row g-4">
+    <!-- Active Job Postings -->
+    <div class="col-lg-8">
+        <div class="card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">Active Postings</h5>
+                <span class="badge bg-primary px-3 py-2">{{ employer.job_postings|length }} Total</span>
+            </div>
+            
+            {% if employer.job_postings %}
+                <div class="d-flex flex-column gap-3">
+                    {% for job in employer.job_postings %}
+                        <div class="card bg-light p-4 interactive-card">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="fw-bold mb-1">{{ job.job_title }}</h6>
+                                    <p class="text-muted small mb-0">{{ job.location }} &bull; {{ job.job_type or 'Full-time' }}</p>
+                                </div>
+                                <a href="{{ url_for('job_recommendations', job_id=job.job_id) }}" class="btn btn-sm btn-primary px-3">
+                                    View Matches
+                                </a>
                             </div>
-                            <div class="col-md-5">
-                                <input type="text" class="form-control" name="location" placeholder="Location">
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary w-100">Search</button>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                {% for skill in job.skills[:3] %}
+                                    <span class="badge bg-white text-dark border px-2 py-1">{{ skill.skill_name }}</span>
+                                {% endfor %}
                             </div>
                         </div>
-                    </form>
+                    {% endfor %}
                 </div>
-            </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-3 text-muted opacity-50">
+                        <i class="fas fa-file-alt fa-3x"></i>
+                    </div>
+                    <h6 class="text-muted mb-3">No active jobs posted.</h6>
+                    <a href="{{ url_for('create_job') }}" class="btn btn-primary">Create Your First Posting</a>
+                </div>
+            {% endif %}
         </div>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">My Job Postings</div>
-                <div class="card-body">
-                    {% if employer.job_postings %}
-                        <ul class="list-group list-group-flush">
-                            {% for job in employer.job_postings %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ job.job_title }}
-                                    <a href="{{ url_for('job_recommendations', job_id=job.job_id) }}" class="btn btn-outline-primary btn-sm">View Recommended Candidates</a>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="text-muted">You have not posted any jobs yet.</p>
-                    {% endif %}
+    <!-- Sidebar Tools -->
+    <div class="col-lg-4 d-flex flex-column gap-4">
+        <!-- Quick Search -->
+        <div class="card p-4 interactive-card">
+            <h5 class="fw-bold mb-3">Quick Talent Search</h5>
+            <form action="{{ url_for('search_candidates') }}" method="get">
+                <div class="mb-3">
+                    <input type="text" class="form-control" name="skills" placeholder="Skills (e.g., Python, React)">
+                </div>
+                <div class="mb-3">
+                    <input type="text" class="form-control" name="location" placeholder="Location">
+                </div>
+                <button type="submit" class="btn btn-outline-primary w-100">Search</button>
+            </form>
+        </div>
+
+        <!-- Membership Status -->
+        <div class="card p-4 interactive-card bg-light">
+            <h6 class="fw-bold text-muted mb-3 text-uppercase small">Membership</h6>
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-white p-3 rounded-circle shadow-sm">
+                    <i class="fas fa-check-circle {% if employer.is_member %}text-success{% else %}text-muted{% endif %} fa-lg"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0">{% if employer.is_member %}Premium Plan{% else %}Free Plan{% endif %}</h5>
+                    <p class="text-muted small mb-0">{% if employer.is_member %}Full access enabled{% else %}Limited visibility{% endif %}</p>
                 </div>
             </div>
         </div>

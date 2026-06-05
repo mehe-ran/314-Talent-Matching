@@ -1,32 +1,43 @@
 {% extends "base.html" %}
 
-{% block title %}Login | Intelligent Talent Matching Platform{% endblock %}
+{% block title %}Sign In | TalentMatch{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-5">
-        <div class="auth-card p-4 p-md-5">
-            <div class="mb-4">
+        <div class="card auth-card p-4 p-md-5">
+            <div class="text-center mb-5">
                 <div class="section-kicker mb-2">Authentication</div>
-                <h1 class="h3 mb-2">Welcome back</h1>
-                <p class="text-muted mb-0">Sign in to continue to your dashboard.</p>
+                <h1 class="fw-bold mb-2">Welcome Back</h1>
+                <p class="text-muted">Sign in to your account to continue.</p>
             </div>
 
             <form method="post" action="/login">
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email address</label>
-                    <input type="email" class="form-control form-control-lg" id="email" name="email" placeholder="you@example.com" required>
+                <div class="mb-4">
+                    <label for="email" class="form-label fw-semibold">Email Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-envelope text-muted"></i></span>
+                        <input type="email" class="form-control border-start-0" id="email" name="email" placeholder="you@example.com" required>
+                    </div>
                 </div>
                 <div class="mb-4">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control form-control-lg" id="password" name="password" placeholder="Enter your password" required>
+                    <div class="d-flex justify-content-between">
+                        <label for="password" class="form-label fw-semibold">Password</label>
+                        <a href="#" class="text-decoration-none small fw-bold">Forgot?</a>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-lock text-muted"></i></span>
+                        <input type="password" class="form-control border-start-0" id="password" name="password" placeholder="Enter your password" required>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg w-100">Log in</button>
+                <button type="submit" class="btn btn-primary btn-lg w-100 py-3">
+                    Sign In <i class="fas fa-sign-in-alt ms-2"></i>
+                </button>
             </form>
 
-            <div class="mt-4 text-center">
-                <span class="text-muted">New here?</span>
-                <a href="/register" class="text-decoration-none fw-semibold">Create an account</a>
+            <div class="mt-5 text-center">
+                <span class="text-muted">Don't have an account?</span>
+                <a href="/register" class="text-decoration-none fw-bold ms-1">Create one now</a>
             </div>
         </div>
     </div>

@@ -1,28 +1,99 @@
 {% extends "base.html" %}
 
-{% block title %}Candidate Dashboard{% endblock %}
+{% block title %}Dashboard | TalentMatch{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h1 class="h2 mb-4">Welcome to your dashboard</h1>
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">{{ candidate.full_name if candidate else 'Candidate' }}</h5>
-                    <p class="card-text">{{ candidate.email if candidate else 'email@example.com' }}</p>
-                     <span class="badge bg-{{ 'success' if candidate and candidate.is_member else 'secondary' }}">
-                        {{ 'Premium Member' if candidate and candidate.is_member else 'Standard Member' }}
-                    </span>
+<div class="row g-4">
+    <!-- Sidebar/Profile Info -->
+    <div class="col-lg-4">
+        <div class="card p-4 h-100 text-center interactive-card">
+            <div class="mb-4">
+                <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-user-graduate fa-2x text-primary"></i>
+                </div>
+                <h2 class="h4 fw-bold mb-1">{{ candidate.full_name }}</h2>
+                <p class="text-muted mb-3">{{ candidate.email }}</p>
+                <span class="badge {% if candidate.is_member %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2">
+                    {% if candidate.is_member %}
+                        <i class="fas fa-check-circle me-1"></i> Premium Member
+                    {% else %}
+                        Standard Member
+                    {% endif %}
+                </span>
+            </div>
+            
+            <div class="text-start mb-4 bg-light p-3 rounded-3">
+                <div class="mb-2">
+                    <small class="text-muted fw-semibold">Location</small>
+                    <div class="fw-medium">{{ candidate.location or 'Not specified' }}</div>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted fw-semibold">Work Mode</small>
+                    <div class="fw-medium">{{ candidate.preferred_work_mode or 'Not specified' }}</div>
+                </div>
+                <div>
+                    <small class="text-muted fw-semibold">Experience</small>
+                    <div class="fw-medium">{{ candidate.years_of_experience or '0' }} Years</div>
                 </div>
             </div>
+
+            <div class="mt-auto d-flex flex-column gap-2">
+                <a href="{{ url_for('edit_profile') }}" class="btn btn-outline-primary w-100">
+                    Edit Profile
+                </a>
+                {% if candidate.resume_filename %}
+                <a href="{{ url_for('download_resume', filename=candidate.resume_filename) }}" class="btn btn-light text-primary w-100">
+                    Download Resume
+                </a>
+                {% endif %}
+            </div>
         </div>
-        <div class="col-md-8">
-            <div class="card">
-                 <div class="card-header">Actions</div>
-                <div class="card-body">
-                    <a href="{{ url_for('recommend') }}" class="btn btn-primary">View Job Recommendations</a>
-                    <a href="{{ url_for('edit_profile') }}" class="btn btn-secondary">Edit Profile</a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <div class="row g-4">
+            <div class="col-12">
+                <!-- Actionable Hero Card -->
+                <div class="card p-5 bg-primary text-white interactive-card text-center text-md-start d-md-flex flex-md-row align-items-md-center justify-content-md-between">
+                    <div>
+                        <h3 class="fw-bold mb-2 text-white">Ready for your next move?</h3>
+                        <p class="mb-0 opacity-75">Our Algorithm has found several jobs that match your skills and experience.</p>
+                    </div>
+                    <div class="mt-4 mt-md-0">
+                        <a href="{{ url_for('recommend') }}" class="btn btn-light text-primary fw-bold px-4 py-2">
+                            View Matches
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- Skills Card -->
+                <div class="card p-4 h-100 interactive-card">
+                    <h5 class="fw-bold mb-3">Your Skills</h5>
+                    {% if candidate.skills %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for skill in candidate.skills %}
+                                <span class="badge bg-light text-dark border px-3 py-2">{{ skill.skill_name }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted small">Add skills to your profile to get better recommendations.</p>
+                        <a href="{{ url_for('edit_profile') }}" class="btn btn-sm btn-outline-primary mt-2">Add Skills</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- Search Card -->
+                <div class="card p-4 h-100 interactive-card text-center d-flex flex-column justify-content-center">
+                    <div class="mb-3 text-primary">
+                        <i class="fas fa-search fa-3x"></i>
+                    </div>
+                    <h5 class="fw-bold mb-2">Find More Jobs</h5>
+                    <p class="text-muted small mb-3">Search through thousands of open positions.</p>
+                    <a href="{{ url_for('search') }}" class="btn btn-outline-primary w-100">Search Jobs</a>
                 </div>
             </div>
         </div>
